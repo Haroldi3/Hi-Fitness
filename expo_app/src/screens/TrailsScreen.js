@@ -1,48 +1,45 @@
 import React, { useState } from "react";
-import { ScrollView, Text, TextInput, View, Pressable } from "react-native";
-
+import { ScrollView, Text, View, Pressable, Alert } from "react-native";
+import * as Location from "expo-location";
 import Card from "../components/Card";
-import { layout } from "../theme/layout";
+import { commonStyles } from "../ui/layout";
 
 export default function TrailsScreen() {
-  const [lat, setLat] = useState("40.7128");
-  const [lng, setLng] = useState("-74.0060");
-  const [results, setResults] = useState([]);
+  const [coords, setCoords] = useState(null);
 
-  const onFind = async () => {
-    // placeholder until you wire Places/Trails API
-    setResults([{ name: "Example Park", address: "Coming soon..." }]);
-  };
+  async function getMyLocation() {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow location permission.");
+      return;
+    }
+    const pos = await Location.getCurrentPositionAsync({});
+    setCoords({
+      latitude: pos.coords.latitude,
+      longitude: pos.coords.longitude,
+    });
+  }
 
   return (
-    <ScrollView style={layout.screen} contentContainerStyle={layout.content}>
+    <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content}>
       <Card>
-        <Text style={layout.h2}>Nearby Trails / Parks</Text>
+        <Text style={commonStyles.h2}>Trails / Parks</Text>
 
-        <Text style={layout.label}>Latitude</Text>
-        <TextInput style={layout.input} value={lat} onChangeText={setLat} keyboardType="decimal-pad" />
-
-        <Text style={layout.label}>Longitude</Text>
-        <TextInput style={layout.input} value={lng} onChangeText={setLng} keyboardType="decimal-pad" />
-
-        <Pressable style={layout.button} onPress={onFind}>
-          <Text style={layout.buttonText}>Find Places</Text>
+        <Pressable onPress={getMyLocation} style={commonStyles.btn}>
+          <Text style={commonStyles.btnText}>Use My GPS Location</Text>
         </Pressable>
-      </Card>
 
-      <Card>
-        <Text style={layout.h2}>Results</Text>
-        {results.length === 0 ? (
-          <Text style={layout.muted}>No places yet.</Text>
-        ) : (
-          results.map((r, idx) => (
-            <View key={idx} style={{ marginBottom: 12 }}>
-              <Text style={{ color: "#fff", fontWeight: "700" }}>{r.name}</Text>
-              <Text style={layout.muted}>{r.address}</Text>
-              <View style={layout.divider} />
-            </View>
-          ))
-        )}
+        <View style={{ marginTop: 12 }}>
+          <Text style={commonStyles.mutedText}>
+            Latitude: {coords ? coords.latitude.toFixed(6) : "—"}
+          </Text>
+          <Text style={commonStyles.mutedText}>
+            Longitude: {coords ? coords.longitude.toFixed(6) : "—"}
+          </Text>
+          <Text style={[commonStyles.mutedText, { marginTop: 8 }]}>
+            Next step: connect to Places API (Google Places / Yelp / OpenStreetMap).
+          </Text>
+        </View>
       </Card>
     </ScrollView>
   );

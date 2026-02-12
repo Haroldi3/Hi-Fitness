@@ -1,77 +1,174 @@
-import React, { useEffect, useState } from "react";
-import { ScrollView, Text, TextInput, View, Pressable } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ScrollView, Text, TextInput, View, Pressable, Alert } from "react-native";
 import { Picker } from "@react-native-picker/picker";
+import * as Location from "expo-location";
 
 import Card from "../components/Card";
-import { layout } from "../theme/layout";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { commonStyles } from "../ui/layout";
+import { STORAGE_KEYS } from "../storage/keys";
+import { loadJSON, saveJSON } from "../storage/store";
 
-const KEY = "cardioLog";
+const ACTIVITY_OPTIONS = ["Run", "Walk", "Bike", "Treadmill", "Stairs", "Other"];
+
+function haversineMiles(a, b) {
+  const toRad = (x) => (x * Math.PI) / 180;
+  const R = 3958.8; // miles
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
 
 export default function CardioScreen() {
   const [activity, setActivity] = useState("Run");
   const [duration, setDuration] = useState("30");
   const [distance, setDistance] = useState("3");
-  const [items, setItems] = useState([]);
+
+  const [logs, setLogs] = useState([]);
+
+  // GPS tracking
+  const [tracking, setTracking] = useState(false);
+  const [route, setRoute] = useState([]); // array of coords
+  const [startTime, setStartTime] = useState(null);
+
+  const watchRef = useRef(null);
 
   useEffect(() => {
     (async () => {
-      const raw = await AsyncStorage.getItem(KEY);
-      if (raw) setItems(JSON.parse(raw));
+      const saved = await loadJSON(STORAGE_KEYS.cardioLog);
+      if (saved && Array.isArray(saved)) setLogs(saved);
     })();
   }, []);
 
-  const save = async (next) => {
-    setItems(next);
-    await AsyncStorage.setItem(KEY, JSON.stringify(next));
-  };
+  useEffect(() => {
+    (async () => {
+      await saveJSON(STORAGE_KEYS.cardioLog, logs);
+    })();
+  }, [logs]);
 
-  const onLog = async () => {
-    const entry = {
+  const liveMiles = useMemo(() => {
+    if (route.length < 2) return 0;
+    let total = 0;
+    for (let i = 1; i < route.length; i++) {
+      total += haversineMiles(route[i - 1], route[i]);
+    }
+    return Math.round(total * 100) / 100;
+  }, [route]);
+
+  const liveMinutes = useMemo(() => {
+    if (!startTime) return 0;
+    const ms = Date.now() - startTime;
+    return Math.max(0, Math.round(ms / 60000));
+  }, [startTime, tracking, route]);
+
+  async function startTracking() {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission needed", "Allow location permission to track your run.");
+      return;
+    }
+
+    setRoute([]);
+    setStartTime(Date.now());
+    setTracking(true);
+
+    watchRef.current = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 2000,
+        distanceInterval: 5,
+      },
+      (pos) => {
+        const coord = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        };
+        setRoute((prev) => [...prev, coord]);
+      }
+    );
+  }
+
+  async function stopTracking() {
+    if (watchRef.current) {
+      await watchRef.current.remove();
+      watchRef.current = null;
+    }
+    setTracking(false);
+
+    // auto-fill the input fields so you DON'T retype
+    if (liveMiles > 0) setDistance(String(liveMiles));
+    if (liveMinutes > 0) setDuration(String(liveMinutes));
+  }
+
+  function addLog() {
+    const d = Number(duration);
+    const dist = Number(distance);
+
+    if (!activity) return Alert.alert("Missing", "Pick an activity.");
+    if (!d || d <= 0) return Alert.alert("Invalid", "Duration must be > 0.");
+    if (!dist || dist <= 0) return Alert.alert("Invalid", "Distance must be > 0.");
+
+    const newLog = {
+      id: `${Date.now()}`, // unique key
+      time: new Date().toISOString(),
       activity,
-      duration: Number(duration || 0),
-      distance: Number(distance || 0),
-      ts: Date.now(),
+      duration: d,
+      distance: dist,
+      route, // optional (can be empty if manual)
     };
-    await save([entry, ...items]);
-  };
+
+    setLogs((prev) => [newLog, ...prev].slice(0, 50));
+    setRoute([]);
+    setStartTime(null);
+  }
 
   return (
-    <ScrollView style={layout.screen} contentContainerStyle={layout.content}>
+    <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content}>
       <Card>
-        <Text style={layout.h2}>Cardio</Text>
+        <Text style={commonStyles.h2}>Cardio</Text>
 
-        <Text style={layout.label}>Activity</Text>
-        <View style={layout.pickerWrap}>
+        <Text style={commonStyles.label}>Activity</Text>
+        <View
+          style={{
+            backgroundColor: "#121212",
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: "#222",
+            overflow: "hidden",
+          }}
+        >
           <Picker
             selectedValue={activity}
             onValueChange={setActivity}
-            style={{ color: "#fff" }}
             dropdownIconColor="#fff"
+            style={{ color: "#fff" }}
           >
-            <Picker.Item label="Run" value="Run" />
-            <Picker.Item label="Walk" value="Walk" />
-            <Picker.Item label="Bike" value="Bike" />
-            <Picker.Item label="Treadmill" value="Treadmill" />
-            <Picker.Item label="Stairmaster" value="Stairmaster" />
+            {ACTIVITY_OPTIONS.map((opt) => (
+              <Picker.Item key={opt} label={opt} value={opt} />
+            ))}
           </Picker>
         </View>
 
-        <View style={[layout.row, { marginTop: 10 }]}>
+        <View style={[commonStyles.row, { marginTop: 10 }]}>
           <View style={{ flex: 1 }}>
-            <Text style={layout.label}>Duration (min)</Text>
+            <Text style={commonStyles.label}>Duration (min)</Text>
             <TextInput
-              style={layout.input}
+              style={commonStyles.input}
               value={duration}
               onChangeText={setDuration}
               keyboardType="number-pad"
             />
           </View>
-
           <View style={{ flex: 1 }}>
-            <Text style={layout.label}>Distance (mi)</Text>
+            <Text style={commonStyles.label}>Distance (mi)</Text>
             <TextInput
-              style={layout.input}
+              style={commonStyles.input}
               value={distance}
               onChangeText={setDistance}
               keyboardType="decimal-pad"
@@ -79,23 +176,43 @@ export default function CardioScreen() {
           </View>
         </View>
 
-        <Pressable style={layout.button} onPress={onLog}>
-          <Text style={layout.buttonText}>Log Cardio</Text>
-        </Pressable>
+        <View style={[commonStyles.row, { marginTop: 12 }]}>
+          <Pressable
+            onPress={tracking ? stopTracking : startTracking}
+            style={[
+              commonStyles.btn,
+              { flex: 1, backgroundColor: tracking ? "#ff4d4d" : "#4da3ff" },
+            ]}
+          >
+            <Text style={commonStyles.btnText}>
+              {tracking ? "Stop GPS" : "Start GPS"}
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={addLog} style={[commonStyles.btn, { flex: 1 }]}>
+            <Text style={commonStyles.btnText}>Log Cardio</Text>
+          </Pressable>
+        </View>
+
+        <Text style={[commonStyles.mutedText, { marginTop: 10 }]}>
+          Live: {tracking ? `${liveMinutes} min · ${liveMiles} mi` : "—"}
+        </Text>
       </Card>
 
       <Card>
-        <Text style={layout.h2}>Recent</Text>
-        {items.length === 0 ? (
-          <Text style={layout.muted}>No cardio logged yet.</Text>
+        <Text style={commonStyles.h2}>Recent</Text>
+
+        {logs.length === 0 ? (
+          <Text style={commonStyles.mutedText}>No cardio logged yet.</Text>
         ) : (
-          items.slice(0, 10).map((x) => (
-            <View key={x.ts} style={{ marginBottom: 12 }}>
-              <Text style={{ color: "#fff", fontWeight: "800" }}>{x.activity}</Text>
-              <Text style={layout.muted}>
-                {x.duration} min • {x.distance} mi
+          logs.map((log) => (
+            <View key={log.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#222" }}>
+              <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>
+                {log.activity}
               </Text>
-              <View style={layout.divider} />
+              <Text style={{ color: "#aaa", marginTop: 2 }}>
+                {log.duration} min · {log.distance} mi
+              </Text>
             </View>
           ))
         )}
@@ -103,4 +220,3 @@ export default function CardioScreen() {
     </ScrollView>
   );
 }
-

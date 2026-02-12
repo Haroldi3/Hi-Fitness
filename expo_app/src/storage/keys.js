@@ -1,6 +1,6 @@
 export const STORAGE_KEYS = {
-  PROFILE: "profile",
-  CARDIO: "cardioLog",
-  STRENGTH: "strengthLog",
-  NUTRITION: "nutritionLog",
+  profile: "hi_fitness_profile",
+  cardioLog: "hi_fitness_cardio_log",
+  strengthLog: "hi_fitness_strength_log",
+  nutritionDay: "hi_fitness_nutrition_day",
 };

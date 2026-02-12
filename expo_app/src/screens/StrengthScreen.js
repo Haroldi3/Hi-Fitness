@@ -1,88 +1,90 @@
 import React, { useEffect, useState } from "react";
-import { ScrollView, Text, TextInput, View, Pressable } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import { ScrollView, Text, TextInput, View, Pressable, Alert } from "react-native";
 import Card from "../components/Card";
-import { layout } from "../theme/layout";
-
-const KEY = "strengthLog";
+import { commonStyles } from "../ui/layout";
+import { STORAGE_KEYS } from "../storage/keys";
+import { loadJSON, saveJSON } from "../storage/store";
 
 export default function StrengthScreen() {
-  const [exercise, setExercise] = useState("");
+  const [exercise, setExercise] = useState("Bench Press");
   const [sets, setSets] = useState("3");
-  const [reps, setReps] = useState("10");
-  const [weight, setWeight] = useState("135");
-  const [items, setItems] = useState([]);
+  const [reps, setReps] = useState("8");
+  const [weight, setWeight] = useState("50");
+  const [logs, setLogs] = useState([]);
 
   useEffect(() => {
     (async () => {
-      const raw = await AsyncStorage.getItem(KEY);
-      if (raw) setItems(JSON.parse(raw));
+      const saved = await loadJSON(STORAGE_KEYS.strengthLog);
+      if (saved && Array.isArray(saved)) setLogs(saved);
     })();
   }, []);
 
-  const save = async (next) => {
-    setItems(next);
-    await AsyncStorage.setItem(KEY, JSON.stringify(next));
-  };
+  useEffect(() => {
+    (async () => {
+      await saveJSON(STORAGE_KEYS.strengthLog, logs);
+    })();
+  }, [logs]);
 
-  const onLog = async () => {
-    const entry = {
-      exercise,
-      sets: Number(sets || 0),
-      reps: Number(reps || 0),
-      weight: Number(weight || 0),
-      ts: Date.now(),
+  function addStrength() {
+    const s = Number(sets);
+    const r = Number(reps);
+    const w = Number(weight);
+
+    if (!exercise.trim()) return Alert.alert("Missing", "Enter an exercise.");
+    if (!s || s <= 0) return Alert.alert("Invalid", "Sets must be > 0.");
+    if (!r || r <= 0) return Alert.alert("Invalid", "Reps must be > 0.");
+    if (!w || w <= 0) return Alert.alert("Invalid", "Weight must be > 0.");
+
+    const log = {
+      id: `${Date.now()}`,
+      time: new Date().toISOString(),
+      exercise: exercise.trim(),
+      sets: s,
+      reps: r,
+      weight: w,
     };
-    await save([entry, ...items]);
-    setExercise("");
-  };
+
+    setLogs((prev) => [log, ...prev].slice(0, 50));
+  }
 
   return (
-    <ScrollView style={layout.screen} contentContainerStyle={layout.content}>
+    <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content}>
       <Card>
-        <Text style={layout.h2}>Strength</Text>
+        <Text style={commonStyles.h2}>Strength</Text>
 
-        <Text style={layout.label}>Exercise</Text>
-        <TextInput
-          style={layout.input}
-          value={exercise}
-          onChangeText={setExercise}
-          placeholder="e.g., Bench Press"
-          placeholderTextColor="#6B7280"
-        />
+        <Text style={commonStyles.label}>Exercise</Text>
+        <TextInput style={commonStyles.input} value={exercise} onChangeText={setExercise} />
 
-        <View style={[layout.row, { marginTop: 10 }]}>
+        <View style={[commonStyles.row, { marginTop: 10 }]}>
           <View style={{ flex: 1 }}>
-            <Text style={layout.label}>Sets</Text>
-            <TextInput style={layout.input} value={sets} onChangeText={setSets} keyboardType="number-pad" />
+            <Text style={commonStyles.label}>Sets</Text>
+            <TextInput style={commonStyles.input} value={sets} onChangeText={setSets} keyboardType="number-pad" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={layout.label}>Reps</Text>
-            <TextInput style={layout.input} value={reps} onChangeText={setReps} keyboardType="number-pad" />
+            <Text style={commonStyles.label}>Reps</Text>
+            <TextInput style={commonStyles.input} value={reps} onChangeText={setReps} keyboardType="number-pad" />
           </View>
         </View>
 
-        <Text style={layout.label}>Weight (lbs)</Text>
-        <TextInput style={layout.input} value={weight} onChangeText={setWeight} keyboardType="number-pad" />
+        <Text style={commonStyles.label}>Weight (lbs)</Text>
+        <TextInput style={commonStyles.input} value={weight} onChangeText={setWeight} keyboardType="decimal-pad" />
 
-        <Pressable style={layout.button} onPress={onLog}>
-          <Text style={layout.buttonText}>Log Strength</Text>
+        <Pressable onPress={addStrength} style={commonStyles.btn}>
+          <Text style={commonStyles.btnText}>Log Strength</Text>
         </Pressable>
       </Card>
 
       <Card>
-        <Text style={layout.h2}>Recent</Text>
-        {items.length === 0 ? (
-          <Text style={layout.muted}>No strength logged yet.</Text>
+        <Text style={commonStyles.h2}>Recent</Text>
+        {logs.length === 0 ? (
+          <Text style={commonStyles.mutedText}>No lifts logged yet.</Text>
         ) : (
-          items.slice(0, 10).map((x) => (
-            <View key={x.ts} style={{ marginBottom: 12 }}>
-              <Text style={{ color: "#fff", fontWeight: "800" }}>{x.exercise || "Exercise"}</Text>
-              <Text style={layout.muted}>
-                {x.sets} sets • {x.reps} reps • {x.weight} lbs
+          logs.map((log) => (
+            <View key={log.id} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#222" }}>
+              <Text style={{ color: "#fff", fontWeight: "800" }}>{log.exercise}</Text>
+              <Text style={{ color: "#aaa" }}>
+                {log.sets}x{log.reps} @ {log.weight} lbs
               </Text>
-              <View style={layout.divider} />
             </View>
           ))
         )}
