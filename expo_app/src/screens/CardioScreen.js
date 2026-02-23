@@ -4,7 +4,7 @@ import { Picker } from "@react-native-picker/picker";
 import * as Location from "expo-location";
 
 import Card from "../components/Card";
-import { commonStyles } from "../ui/layout";
+import { commonStyles } from "../theme/layout";
 import { STORAGE_KEYS } from "../storage/keys";
 import { loadJSON, saveJSON } from "../storage/store";
 

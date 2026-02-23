@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, TextInput, View } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import Card from "../components/Card";
-import { commonStyles } from "../ui/layout";
+import { commonStyles } from "../theme/layout";
 import { STORAGE_KEYS } from "../storage/keys";
 import { loadJSON, saveJSON } from "../storage/store";
 

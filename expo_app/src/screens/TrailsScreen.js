@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { ScrollView, Text, View, Pressable, Alert } from "react-native";
 import * as Location from "expo-location";
 import Card from "../components/Card";
-import { commonStyles } from "../ui/layout";
+import { commonStyles } from "../theme/layout";
 
 export default function TrailsScreen() {
   const [coords, setCoords] = useState(null);

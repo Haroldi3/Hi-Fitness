@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { ScrollView, Text, TextInput, View, Pressable, Alert } from "react-native";
 import Card from "../components/Card";
-import { commonStyles } from "../ui/layout";
+import { commonStyles } from "../theme/layout";
 import { api } from "../api/client";
 
 function todayStr() {
@@ -24,8 +24,8 @@ export default function NutritionScreen() {
     if (!query.trim()) return;
 
     try {
-      // GET /api/food/search?q=rice
-      const res = await api.get(`/api/food/search`, { params: { q: query.trim() } });
+      // GET /api/nutrition/search?q=rice
+      const res = await api.get(`/api/nutrition/search`, { params: { q: query.trim() } });
 
       // Expected shape: { items: [{ name, calories }] }
       const items = res.data?.items ?? [];
