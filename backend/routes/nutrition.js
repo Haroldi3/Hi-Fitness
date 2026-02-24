@@ -30,7 +30,7 @@ async function getAccessToken() {
   );
 
   cachedToken = res.data.access_token;
-  tokenExpires = Date.now() + (res.data.expires_in - 60) * 1000; // refresh 1 min early
+  tokenExpires = Date.now() + (res.data.expires_in - 60) * 1000;
 
   return cachedToken;
 }
@@ -54,20 +54,25 @@ router.get("/search", async (req, res) => {
       },
     });
 
-    // Normalise into the shape the front-end expects: { items: [{ name, calories }] }
     const rawFoods = r.data?.foods?.food || [];
     const items = (Array.isArray(rawFoods) ? rawFoods : [rawFoods]).map((f) => {
-      // FatSecret returns a description string like "Per 100g - Calories: 130kcal | ..."
-      // Extract the calorie number from it
       const descr = f.food_description || "";
       const calMatch = descr.match(/Calories:\s*([\d.]+)/i);
       const calories = calMatch ? parseFloat(calMatch[1]) : 0;
+
+      // Try to extract macros from the description
+      const fatMatch = descr.match(/Fat:\s*([\d.]+)/i);
+      const carbMatch = descr.match(/Carbs:\s*([\d.]+)/i);
+      const proteinMatch = descr.match(/Protein:\s*([\d.]+)/i);
 
       return {
         id: f.food_id,
         name: f.food_name,
         brand: f.brand_name || "",
         calories,
+        fat: fatMatch ? parseFloat(fatMatch[1]) : 0,
+        carbs: carbMatch ? parseFloat(carbMatch[1]) : 0,
+        protein: proteinMatch ? parseFloat(proteinMatch[1]) : 0,
         description: descr,
       };
     });

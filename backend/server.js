@@ -9,10 +9,6 @@ app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
-// ---- YOUR EXISTING ROUTES ----
-// Example:
-// app.use("/api/workouts", require("./routes/workouts"));
-
 // ---- NEW ROUTES FOR EXPO APP ----
 app.use("/api/exercises", require("./routes/exercises"));
 app.use("/api/nutrition", require("./routes/nutrition"));

@@ -3,4 +3,6 @@ export const STORAGE_KEYS = {
   cardioLog: "hi_fitness_cardio_log",
   strengthLog: "hi_fitness_strength_log",
   nutritionDay: "hi_fitness_nutrition_day",
+  weightHistory: "hi_fitness_weight_history",
+  onboarded: "hi_fitness_onboarded",
 };

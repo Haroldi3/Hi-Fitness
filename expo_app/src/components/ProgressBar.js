@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import { COLORS } from "../theme/colors";
 
 export default function ProgressBar({ label, value, goal, suffix = "" }) {
   const pct = goal > 0 ? Math.min(1, value / goal) : 0;
@@ -20,8 +21,8 @@ export default function ProgressBar({ label, value, goal, suffix = "" }) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  label: { fontWeight: "600" },
-  value: { color: "#374151" },
-  track: { height: 10, borderRadius: 8, backgroundColor: "#e5e7eb", overflow: "hidden" },
-  fill: { height: 10, backgroundColor: "#111827" },
+  label: { fontWeight: "600", color: COLORS.text },
+  value: { color: COLORS.muted, fontSize: 12 },
+  track: { height: 8, borderRadius: 8, backgroundColor: COLORS.border, overflow: "hidden" },
+  fill: { height: 8, backgroundColor: COLORS.primary, borderRadius: 8 },
 });

@@ -8,40 +8,44 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { Picker } from "@react-native-picker/picker";
 import Card from "../components/Card";
 import { commonStyles } from "../theme/layout";
+import { COLORS } from "../theme/colors";
 import { STORAGE_KEYS } from "../storage/keys";
 import { loadJSON, saveJSON } from "../storage/store";
 import { fetchExercises } from "../api/exercises";
 
 const MUSCLE_GROUPS = [
-  "chest",
-  "biceps",
-  "triceps",
-  "lats",
-  "middle_back",
-  "lower_back",
-  "shoulders",
-  "quadriceps",
-  "hamstrings",
-  "glutes",
-  "calves",
-  "abdominals",
-  "forearms",
-  "traps",
+  { label: "Select muscle group…", value: "" },
+  { label: "Chest", value: "chest" },
+  { label: "Biceps", value: "biceps" },
+  { label: "Triceps", value: "triceps" },
+  { label: "Lats", value: "lats" },
+  { label: "Middle Back", value: "middle_back" },
+  { label: "Lower Back", value: "lower_back" },
+  { label: "Shoulders", value: "shoulders" },
+  { label: "Quadriceps", value: "quadriceps" },
+  { label: "Hamstrings", value: "hamstrings" },
+  { label: "Glutes", value: "glutes" },
+  { label: "Calves", value: "calves" },
+  { label: "Abdominals", value: "abdominals" },
+  { label: "Forearms", value: "forearms" },
+  { label: "Traps", value: "traps" },
 ];
 
 export default function StrengthScreen() {
-  const [exercise, setExercise] = useState("Bench Press");
+  // Exercise selection
+  const [selectedMuscle, setSelectedMuscle] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Chosen exercise + log form
+  const [exercise, setExercise] = useState("");
   const [sets, setSets] = useState("3");
   const [reps, setReps] = useState("8");
   const [weight, setWeight] = useState("50");
   const [logs, setLogs] = useState([]);
-
-  // Exercise suggestion state
-  const [selectedMuscle, setSelectedMuscle] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -56,10 +60,14 @@ export default function StrengthScreen() {
     })();
   }, [logs]);
 
-  async function loadSuggestions(muscle) {
+  async function handleMuscleChange(muscle) {
     setSelectedMuscle(muscle);
-    setLoadingSuggestions(true);
     setSuggestions([]);
+    setExercise("");
+
+    if (!muscle) return;
+
+    setLoading(true);
     try {
       const results = await fetchExercises({ muscle });
       setSuggestions(results);
@@ -73,14 +81,18 @@ export default function StrengthScreen() {
         "Check that your backend is running and APININJAS_KEY is set in .env."
       );
     } finally {
-      setLoadingSuggestions(false);
+      setLoading(false);
     }
   }
 
-  function pickSuggestion(name) {
+  function pickExercise(name) {
     setExercise(name);
+  }
+
+  function clearSelection() {
+    setExercise("");
     setSuggestions([]);
-    setSelectedMuscle(null);
+    setSelectedMuscle("");
   }
 
   function addStrength() {
@@ -88,7 +100,7 @@ export default function StrengthScreen() {
     const r = Number(reps);
     const w = Number(weight);
 
-    if (!exercise.trim()) return Alert.alert("Missing", "Enter an exercise.");
+    if (!exercise.trim()) return Alert.alert("Missing", "Pick an exercise first.");
     if (!s || s <= 0) return Alert.alert("Invalid", "Sets must be > 0.");
     if (!r || r <= 0) return Alert.alert("Invalid", "Reps must be > 0.");
     if (!w || w <= 0) return Alert.alert("Invalid", "Weight must be > 0.");
@@ -103,72 +115,60 @@ export default function StrengthScreen() {
     };
 
     setLogs((prev) => [log, ...prev].slice(0, 50));
+    Alert.alert("Logged!", `${exercise} — ${s}x${r} @ ${w} lbs`);
+    clearSelection();
   }
 
   return (
-    <ScrollView
-      style={commonStyles.screen}
-      contentContainerStyle={commonStyles.content}
-    >
-      {/* ── Exercise Suggestions (API-powered) ── */}
+    <ScrollView style={commonStyles.screen} contentContainerStyle={commonStyles.content}>
+      {/* Step 1: Pick muscle group from dropdown */}
       <Card>
-        <Text style={commonStyles.h2}>Find Exercises</Text>
-        <Text style={[commonStyles.mutedText, { marginBottom: 8 }]}>
-          Tap a muscle group to get exercise ideas:
-        </Text>
+        <Text style={commonStyles.h2}>Find an Exercise</Text>
 
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-          {MUSCLE_GROUPS.map((m) => (
-            <Pressable
-              key={m}
-              onPress={() => loadSuggestions(m)}
-              style={{
-                backgroundColor: selectedMuscle === m ? "#4da3ff" : "#1a1a1a",
-                borderWidth: 1,
-                borderColor: selectedMuscle === m ? "#4da3ff" : "#333",
-                borderRadius: 8,
-                paddingVertical: 6,
-                paddingHorizontal: 12,
-              }}
-            >
-              <Text
-                style={{
-                  color: selectedMuscle === m ? "#000" : "#ccc",
-                  fontSize: 13,
-                  fontWeight: "600",
-                  textTransform: "capitalize",
-                }}
-              >
-                {m.replace("_", " ")}
-              </Text>
-            </Pressable>
-          ))}
+        <Text style={commonStyles.label}>Muscle Group</Text>
+        <View
+          style={{
+            backgroundColor: COLORS.inputBg,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            overflow: "hidden",
+          }}
+        >
+          <Picker
+            selectedValue={selectedMuscle}
+            onValueChange={handleMuscleChange}
+            dropdownIconColor="#fff"
+            style={{ color: "#fff" }}
+          >
+            {MUSCLE_GROUPS.map((m) => (
+              <Picker.Item key={m.value} label={m.label} value={m.value} />
+            ))}
+          </Picker>
         </View>
 
-        {loadingSuggestions && (
-          <ActivityIndicator
-            color="#4da3ff"
-            style={{ marginTop: 14 }}
-            size="small"
-          />
+        {loading && (
+          <ActivityIndicator color={COLORS.primary} style={{ marginTop: 14 }} size="small" />
         )}
 
-        {suggestions.length > 0 && (
+        {/* Suggestions list */}
+        {suggestions.length > 0 && !exercise && (
           <View style={{ marginTop: 12 }}>
-            {suggestions.slice(0, 8).map((ex, idx) => (
+            <Text style={[commonStyles.mutedText, { marginBottom: 6 }]}>
+              Tap an exercise to select it:
+            </Text>
+            {suggestions.slice(0, 10).map((ex, idx) => (
               <Pressable
                 key={`${ex.name}-${idx}`}
-                onPress={() => pickSuggestion(ex.name)}
+                onPress={() => pickExercise(ex.name)}
                 style={{
                   paddingVertical: 10,
                   borderBottomWidth: 1,
-                  borderBottomColor: "#222",
+                  borderBottomColor: COLORS.border,
                 }}
               >
-                <Text style={{ color: "#fff", fontWeight: "700" }}>
-                  {ex.name}
-                </Text>
-                <Text style={{ color: "#aaa", fontSize: 12, marginTop: 2 }}>
+                <Text style={{ color: COLORS.text, fontWeight: "700" }}>{ex.name}</Text>
+                <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 2 }}>
                   {ex.type} · {ex.difficulty || "—"}
                 </Text>
               </Pressable>
@@ -177,70 +177,89 @@ export default function StrengthScreen() {
         )}
       </Card>
 
-      {/* ── Log Workout ── */}
-      <Card>
-        <Text style={commonStyles.h2}>Log Strength</Text>
-
-        <Text style={commonStyles.label}>Exercise</Text>
-        <TextInput
-          style={commonStyles.input}
-          value={exercise}
-          onChangeText={setExercise}
-        />
-
-        <View style={[commonStyles.row, { marginTop: 10 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={commonStyles.label}>Sets</Text>
-            <TextInput
-              style={commonStyles.input}
-              value={sets}
-              onChangeText={setSets}
-              keyboardType="number-pad"
-            />
+      {/* Step 2: Log form — only visible after exercise is picked */}
+      {exercise !== "" && (
+        <Card>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
+            <Text style={commonStyles.h2}>Log Set</Text>
+            <Pressable onPress={clearSelection}>
+              <Text style={{ color: COLORS.primary, fontSize: 13, fontWeight: "600" }}>
+                Change Exercise
+              </Text>
+            </Pressable>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={commonStyles.label}>Reps</Text>
-            <TextInput
-              style={commonStyles.input}
-              value={reps}
-              onChangeText={setReps}
-              keyboardType="number-pad"
-            />
+
+          <Text
+            style={{
+              color: COLORS.primary,
+              fontSize: 16,
+              fontWeight: "800",
+              marginBottom: 10,
+            }}
+          >
+            {exercise}
+          </Text>
+
+          <View style={commonStyles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={commonStyles.label}>Sets</Text>
+              <TextInput
+                style={commonStyles.input}
+                value={sets}
+                onChangeText={setSets}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={commonStyles.label}>Reps</Text>
+              <TextInput
+                style={commonStyles.input}
+                value={reps}
+                onChangeText={setReps}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={commonStyles.label}>Weight (lbs)</Text>
+              <TextInput
+                style={commonStyles.input}
+                value={weight}
+                onChangeText={setWeight}
+                keyboardType="decimal-pad"
+              />
+            </View>
           </View>
-        </View>
 
-        <Text style={commonStyles.label}>Weight (lbs)</Text>
-        <TextInput
-          style={commonStyles.input}
-          value={weight}
-          onChangeText={setWeight}
-          keyboardType="decimal-pad"
-        />
+          <Pressable onPress={addStrength} style={[commonStyles.btn, { marginTop: 14 }]}>
+            <Text style={commonStyles.btnText}>Log Strength</Text>
+          </Pressable>
+        </Card>
+      )}
 
-        <Pressable onPress={addStrength} style={commonStyles.btn}>
-          <Text style={commonStyles.btnText}>Log Strength</Text>
-        </Pressable>
-      </Card>
-
-      {/* ── Recent Logs ── */}
+      {/* Recent logs */}
       <Card>
         <Text style={commonStyles.h2}>Recent</Text>
         {logs.length === 0 ? (
           <Text style={commonStyles.mutedText}>No lifts logged yet.</Text>
         ) : (
-          logs.map((log) => (
+          logs.slice(0, 20).map((log) => (
             <View
               key={log.id}
               style={{
-                paddingVertical: 10,
+                paddingVertical: 8,
                 borderBottomWidth: 1,
-                borderBottomColor: "#222",
+                borderBottomColor: COLORS.border,
               }}
             >
-              <Text style={{ color: "#fff", fontWeight: "800" }}>
-                {log.exercise}
-              </Text>
-              <Text style={{ color: "#aaa" }}>
+              <Text style={{ color: COLORS.text, fontWeight: "800" }}>{log.exercise}</Text>
+              <Text style={{ color: COLORS.muted, fontSize: 12 }}>
                 {log.sets}x{log.reps} @ {log.weight} lbs
               </Text>
             </View>
